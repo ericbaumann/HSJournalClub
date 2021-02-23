@@ -13,48 +13,52 @@ import tensorflow as tf  # Import tensorflow for Inception Net's backend
 language = 'en'
 
 # Get a live stream from the webcam
-live_stream = cv2.VideoCapture(0)
+live_stream = cv2.VideoCapture(1)
 
 # Word for which letters are currently being signed
 current_word = ""
 
-# Load training labels file
-label_lines = [line.rstrip() for line in tf.gfile.GFile("../training_labels.txt")]
+# Load training labels
+CATEGORIES = ["A", "B", "C", "D", "del", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "nothing", "O", "P", "Q", "R", "S", "space", "T", "U",
+              "V", "W", "X", "Y", "Z"]
+IMG_SIZE = 28
 
 # Load trained model's graph
-with tf.gfile.FastGFile("./asl_model/saved_model.pb", 'rb') as f:
-    # Define a tensorflow graph
-    graph_def = tf.GraphDef()
+# with tf.io.gfile.GFile("./asl_model/saved_model.pb", 'rb') as f:
+#     # Define a tensorflow graph
+#     graph_def = tf.compat.v1.GraphDef()
+#
+#     # Read and import line by line from the trained model's graph
+#     graph_def.ParseFromString(f.read())
+#     _ = tf.import_graph_def(graph_def, name='')
 
-    # Read and import line by line from the trained model's graph
-    graph_def.ParseFromString(f.read())
-    _ = tf.import_graph_def(graph_def, name='')
+
+def prepare(filepath):
+    new_array = cv2.resize(filepath, (IMG_SIZE, IMG_SIZE))  # resize image to match model's expected sizing
+    return new_array.reshape(-1, IMG_SIZE, IMG_SIZE, 1)
 
 
-def predict(image_data):
+def predict(model, image_data):
     # Focus on Region of Interest (Image within the bounding box)
     resized_image = image_data[70:350, 70:350]
 
     # Resize to 200 x 200
     resized_image = cv2.resize(resized_image, (200, 200))
 
-    image_data = cv2.imencode('.jpg', resized_image)[1].tostring()
+    gray = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
 
-    predictions = sess.run(softmax_tensor, {'DecodeJpeg/contents:0': image_data})
+    # Just for Debugging
+    cv2.imshow("grayscale + resized Image", gray)
 
-    # Sort to show labels of first prediction in order of confidence
-    top_k = predictions[0].argsort()[-len(predictions[0]):][::-1]
+    print(prepare(gray))
 
-    max_score = 0.0
-    res = ''
-    for node_id in top_k:
-        human_string = label_lines[node_id]
-        score = predictions[0][node_id]
-        if score > max_score:
-            max_score = score
-            res = human_string
+    predictions = model.predict(prepare(gray))
 
-    return res, max_score
+    print(predictions)
+
+    final = (CATEGORIES[int(np.argmax(predictions[0]))])
+
+    return final
 
 
 def speak_letter(letter):
@@ -71,9 +75,14 @@ def speak_letter(letter):
     os.system("afplay prediction.mp3")
 
 
-with tf.Session() as sess:
+with tf.compat.v1.Session(graph=tf.Graph()) as sess:
+    model = tf.keras.models.load_model("./asl_model")
+
+    # tf.compat.v1.saved_model.loader.load(
+    #     sess, tags=[tf.compat.v1.saved_model.tag_constants.SERVING], export_dir="./asl_model/")
+
     # Feed the image_data as input to the graph and get first prediction
-    softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
+    # softmax_tensor = sess.graph.get_tensor_by_name('softmax:0')
 
     # Global variable to keep track of time
     time_counter = 0
@@ -109,9 +118,9 @@ with tf.Session() as sess:
         # To get time intervals
         if time_counter % 45 == 0 and realTime:
 
-            letter, score = predict(img)
+            letter = predict(model, img)
             # cv2.imshow("Resized Image", img)
-            print("Letter: ", letter.upper(), " Score: ", score)
+            print("Letter: ", letter.upper())
             print("Current word: ", current_word)
 
             if letter.upper() != 'NOTHING' and letter.upper() != 'SPACE' and letter.upper() != 'DEL':
@@ -147,12 +156,10 @@ with tf.Session() as sess:
             captureFlag = False
 
             # Show the image considered for classification
-            # Just for Debugging
-            # cv2.imshow("Resized Image", resized_image)
 
             # Get the letter and the score
-            letter, score = predict(img)
-            print("Letter: ", letter.upper(), " Score: ", score)
+            letter = predict(img)
+            print("Letter: ", letter.upper())
             print("Current word: ", current_word)
 
             if letter.upper() != 'NOTHING' and letter.upper() != 'SPACE' and letter.upper() != 'DEL':
