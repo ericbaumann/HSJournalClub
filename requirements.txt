@@ -56,3 +56,10 @@ urllib3                1.26.3
 Werkzeug               1.0.1
 wheel                  0.36.2
 wrapt                  1.12.1
+
+opencv-python~=4.5.1.48
+tensorflow~=2.4.1
+numpy~=1.19.5
+gTTS~=2.2.2
+matplotlib~=3.3.4
+Keras~=2.4.3
