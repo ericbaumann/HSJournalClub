@@ -1,7 +1,7 @@
 train:
 		python src/train.py
 demo:
-		python src/asl_demo.py
+		python src/demo.py
 
 lint:
 		python -m flake8 src

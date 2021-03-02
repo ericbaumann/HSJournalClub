@@ -3,16 +3,25 @@ import tensorflow as tf
 from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, BatchNormalization
 from keras_preprocessing.image import ImageDataGenerator
 from keras.callbacks import ReduceLROnPlateau
+from datetime import date
+
 
 batch_size = 32
-num_epochs = 20
+num_epochs = 50
+
+
+class accuracyCallback(tf.keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs={}):
+        if logs.get('accuracy') > 0.98:
+            print("\nReached 98% accuracy so cancelling training!")
+            self.model.stop_training = True
 
 
 def asl_demo():
     # create image generator
     # this includes splitting the data for train/test as well as some data augmentation
-    train_datagen = ImageDataGenerator(
-        rescale=1. / 255,
+    imgdatagen = ImageDataGenerator(
+        rescale=1./255,
         featurewise_center=False,  # set input mean to 0 over the dataset
         samplewise_center=False,  # set each sample mean to 0
         featurewise_std_normalization=False,  # divide inputs by std of the dataset
@@ -28,7 +37,7 @@ def asl_demo():
         vertical_flip=False,  # don't randomly flip images
         validation_split=0.2)  # set validation split
 
-    train_generator = train_datagen.flow_from_directory(
+    train_generator = imgdatagen.flow_from_directory(
         "./data/asl_alphabet_train",
         target_size=(28, 28),
         batch_size=batch_size,
@@ -36,7 +45,7 @@ def asl_demo():
         color_mode='grayscale',
         subset='training')  # set as training data
 
-    validation_generator = train_datagen.flow_from_directory(
+    validation_generator = imgdatagen.flow_from_directory(
         "./data/asl_alphabet_train",
         target_size=(28, 28),
         batch_size=batch_size,
@@ -50,18 +59,17 @@ def asl_demo():
                                                 min_lr=0.00001)
 
     model = tf.keras.models.Sequential([
-        Conv2D(75, (3, 3), strides=1, padding='same', activation='relu', input_shape=(28, 28, 1)),
+        Conv2D(75, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        Conv2D(75, (3, 3), activation='relu', input_shape=(28, 28, 1)),
         BatchNormalization(),
-        Conv2D(75, (3, 3), strides=1, padding='same', activation='relu', input_shape=(28, 28, 1)),
-        BatchNormalization(),
-        MaxPooling2D((2, 2), strides=2, padding='same'),
-        Conv2D(50, (3, 3), strides=1, padding='same', activation='relu'),
+        MaxPooling2D((2, 2)),
+        Conv2D(50, (3, 3), activation='relu'),
         Dropout(0.2),
         BatchNormalization(),
-        MaxPooling2D((2, 2), strides=2, padding='same'),
-        Conv2D(25, (3, 3), strides=1, padding='same', activation='relu'),
+        MaxPooling2D((2, 2)),
+        Conv2D(25, (3, 3), activation='relu'),
         BatchNormalization(),
-        MaxPooling2D((2, 2), strides=2, padding='same'),
+        MaxPooling2D((2, 2)),
         Flatten(),
         Dense(units=512, activation='relu'),
         Dropout(0.3),
@@ -77,9 +85,9 @@ def asl_demo():
         validation_data=validation_generator,
         validation_steps=validation_generator.samples // batch_size,
         epochs=num_epochs,
-        callbacks=[learning_rate_reduction])
+        callbacks=[accuracyCallback(), learning_rate_reduction])
 
-    model.save('asl_model')
+    model.save(f"{date.today().strftime('%b-%d-%Y')}-asl_model")
 
     eval_history = model.evaluate_generator(validation_generator,
                                             steps=validation_generator.samples // batch_size)
@@ -109,23 +117,6 @@ def asl_demo():
     ax[1].set_xlabel("Epochs")
     ax[1].set_ylabel("Loss")
     plt.show()
-
-    confusion_datagen = ImageDataGenerator(
-        rescale=1. / 255,
-        horizontal_flip=False,
-        vertical_flip=False)
-
-    confusion_generator = confusion_datagen.flow_from_directory(
-        "./data/asl_alphabet_test",
-        target_size=(28, 28),
-        batch_size=batch_size,
-        class_mode='binary')
-
-    predictions = model.predict_generator(confusion_generator, steps=confusion_generator.samples // batch_size)
-    for i in range(len(predictions)):
-        if predictions[i] >= 9:
-            predictions[i] += 1
-    predictions[:5]
 
 
 if __name__ == "__main__":

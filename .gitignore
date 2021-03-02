@@ -83,6 +83,9 @@ target/
 # VSCode
 .vscode
 
+# saved audio objects
+*.mp3
+
 # IPython
 profile_default/
 ipython_config.py
