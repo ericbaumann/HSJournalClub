@@ -90,10 +90,10 @@ while True:
     # Show the live stream
     cv2.imshow("Live Stream", frame)
 
+    prepared_frame = process_frame(frame)
+
     # To get time intervals
     if time_counter % 30 == 0 and realTime:
-
-        prepared_frame = process_frame(frame)
 
         letter = predict(prepared_frame)
         print("Letter: ", letter.upper())

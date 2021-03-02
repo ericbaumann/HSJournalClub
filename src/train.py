@@ -5,9 +5,8 @@ from keras_preprocessing.image import ImageDataGenerator
 from keras.callbacks import ReduceLROnPlateau
 from datetime import date
 
-
 batch_size = 32
-num_epochs = 50
+num_epochs = 20
 
 
 class accuracyCallback(tf.keras.callbacks.Callback):
